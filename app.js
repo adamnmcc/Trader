@@ -124,7 +124,43 @@ function cancelOrders(callback)
 //Interval look for open position targets and deal with them.
 function pollPositionTargets()
 {
-	//get outstanding positions that are not filled.
+	//get outstanding positions that are not filled and do not have outstanding trades associated with them.
 
-	//
+	//Calculate trade size
+
+	//Place trade
+}
+
+//Interval monitor trade.
+function pollActiveTrades()
+{
+	async.waterfall
+	(
+		[
+			//Get outstanding positions (marked in db).
+			function(callback)
+			{
+				getOutstandingPositions(function(err, results)
+				{
+
+				});
+			},
+			//get active order associated with it from gdax.
+			function(callback)
+			{
+
+			}
+		]
+	)
+	
+
+	
+
+	//check if current order has been partially filled. Mark amount filled in outstanding positions.
+
+	//get order book.
+
+	//check if current position is at ask/bid threshold.
+
+	//if it is not, cancel order and re-place trade.
 }
