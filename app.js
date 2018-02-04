@@ -10,82 +10,114 @@ const apiURI = 'https://api.gdax.com';
 const sandboxURI = 'https://api-public.sandbox.gdax.com';
 
 const authedClient = new gdax.AuthenticatedClient(key, secret, passphrase, sandboxURI);
-exports.authedClient = authedClient;
 
 var con = mysql.createConnection({
-  host     : '192.168.0.11',
+  host     : '192.168.0.100',
   user     : 'admin',
   password : 'jh1995',
-  database : 'TradeDB'
+  database : 'Trader'
 });
 
 con.connect();
-//Add Position - Takes Type(Buy/Sell), Time Limit(Seconds).
-//Add position to database. 
-function addPosition(type, timeLimit, callback)
-{
-	var sql = "INSERT INTO PositionTarget (type, timelimit) VALUES(?, ?)";
-	var val = [type, timeLimit];
-	con.query(sql, val, function(err, results)
-	{
-		return callback(err, results);
-	});
-};
 
-function deactivePositions(callback)
-{
-	var sql = "UPDATE PositionTarget SET active = FALSE";
-	con.query(sql, function(err, results)
-	{
-		return callback(err, results);
-	});
-};
 
-function getOutstandingPositions(callback)
+function AddPosition(type)
 {
-	var sql = "SELECT * FROM PositionTarget WHERE active = TRUE";
-	con.query(sql, function(err, results)
+	//Store position in database.
+	async.series(
 	{
-		if (results.length == 0)
+		[
+			function(callback)
+			{
+				var sql = "INSERT INTO Positions (type) VALUES(?)";
+				var val = [type];
+				con.query(sql, val, function(err, results)
+				{
+					if (err)
+					{
+						return callback(err);
+					}
+					else
+					{
+						return callback(null);
+					}
+				});
+			},
+			function(callback)
+			{
+				//Place trade
+				var sql = "SELECT * FROM Positions ORDER BY added_time DESC LIMIT 2";
+				con.query(sql, function(err, results)
+				{
+					if (err)
+					{
+						return callback(err);
+					}
+					else if (results.length < 2)
+					{
+						return new errors.NotFound();
+					}
+					else
+					{
+						if (results[0] == results[1])
+						{
+							//Do Nothing, no trade needs to be made we already have this position.
+						}
+						else
+						{
+							//Start trading interval. 
+						}
+						return callback(null);
+					}
+				});
+			}
+		],
+		function(err, results)
 		{
-			return callback(new errors.NotFound(), null);
+			if (err) return console.log(err);
+		}
+	});
+}
+
+function PlaceTrade(type, callback)
+{
+	async.waterfall
+	(
+		[
+			function(cbk)
+			{
+				GetSpreads(type, function(err, results)
+				{
+					if (err) return cbk(err, null);
+
+					console.log(results);
+				});
+			}
+		]
+	)
+}
+
+function GetSpreads(type, callback)
+{
+	//Make API call to get current spreads, return needed one based on type.
+	authedClient.getProductOrderBook('BTC-USD', function(err, results)
+	{
+		if (err)
+		{
+			return callback(err, null);
 		}
 		else
 		{
-			return callback(err, results[0]);
+			var val = (type) ? results.bids[0] : results.asks[0];
+			return callback(null, val);
 		}
 	});
-};
+}
 
-//Retrieve trader balance.
-function getTraderBalance(callback)
-{
-	authedClient.getAccounts(function(err, response)
-	{
-		return response[0].available;
-	})
-};
 
-//Get current ask/bid spreads.
-function getCurrentPrice(orderType, callback)
-{
-	authedClient.getProductOrderBook('BTC-USD', function(err, response)
-	{
-		var val = null;
-		if (err) return callback(err, null);
 
-		if (orderType == 'buy')
-		{
-			val = response.bids[0][0];
-		}
-		else
-		{
-			val = response.asks[0][0];
-		}
-		return callback(null, val);
-	});
-};
-//Place Trade (post only).
+
+/*
 function placeTrade(size, price, type, callback)
 {
 	var params = {
@@ -100,67 +132,4 @@ function placeTrade(size, price, type, callback)
 	{
 		return callback(err, results);
 	});
-};
-
-//Get outstanding limit orders that were not filled.
-function getActiveOrders(callback)
-{
-	authedClient.getOrders(function(err, results)
-	{
-		return callback(err, results);
-	});
-};
-
-//Cancel outstanding limit order. 
-function cancelOrders(callback)
-{
-	authedClient.cancelAllOrders(function(err, results)
-	{
-		return callback(err, results);
-	});
-};
-
-
-//Interval look for open position targets and deal with them.
-function pollPositionTargets()
-{
-	//get outstanding positions that are not filled and do not have outstanding trades associated with them.
-
-	//Calculate trade size
-
-	//Place trade
-}
-
-//Interval monitor trade.
-function pollActiveTrades()
-{
-	async.waterfall
-	(
-		[
-			//Get outstanding positions (marked in db).
-			function(callback)
-			{
-				getOutstandingPositions(function(err, results)
-				{
-
-				});
-			},
-			//get active order associated with it from gdax.
-			function(callback)
-			{
-
-			}
-		]
-	)
-	
-
-	
-
-	//check if current order has been partially filled. Mark amount filled in outstanding positions.
-
-	//get order book.
-
-	//check if current position is at ask/bid threshold.
-
-	//if it is not, cancel order and re-place trade.
-}
+};*/
